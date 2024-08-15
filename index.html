@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Connect 4</title>
+    <style>
+        body {
+            font-family: 'Roboto', sans-serif;
+            background-color: #f0f0f0;
+            color: #333;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+        }
+        h1 {
+            font-size: 3em;
+            color: #0056b3;
+            margin-bottom: 10px;
+        }
+        #scoreboard {
+            display: flex;
+            justify-content: space-between;
+            width: 40%;
+            margin-bottom: 20px;
+        }
+        #scoreboard div {
+            font-size: 1.5em;
+            font-weight: bold;
+        }
+        #board {
+            display: grid;
+            grid-template-columns: repeat(7, 80px);
+            grid-template-rows: repeat(6, 80px);
+            gap: 10px;
+            perspective: 1000px;
+            background-color: #0056b3;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0px 10px 20px rgba(0, 0, 0, 0.2);
+        }
+        .cell {
+            width: 80px;
+            height: 80px;
+            background-color: #f0f0f0;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: inset 0px 5px 15px rgba(0, 0, 0, 0.6);
+            transition: transform 0.3s ease, background-color 0.3s ease;
+        }
+        .cell:hover {
+            transform: translateY(-10px);
+        }
+        .red {
+            background-color: #e94560;
+        }
+        .yellow {
+            background-color: #ffcc00;
+        }
+        #message {
+            margin-top: 20px;
+            font-size: 1.5em;
+            color: #333;
+        }
+        #restartButton {
+            margin-top: 10px;
+            padding: 12px 24px;
+            font-size: 1.2em;
+            background-color: #e94560;
+            color: #fff;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+            box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.1);
+        }
+        #restartButton:hover {
+            background-color: #b83050;
+        }
+    </style>
+</head>
+<body>
+    <h1>Connect 4</h1>
+    <div id="scoreboard">
+        <div id="playerScore">Player: 0</div>
+        <div id="computerScore">Computer: 0</div>
+    </div>
+    <div id="board"></div>
+    <div id="message"></div>
+    <button id="restartButton" style="display:none;">Restart Game</button>
+
+    <script>
+        const board = document.getElementById('board');
+        const message = document.getElementById('message');
+        const restartButton = document.getElementById('restartButton');
+        const playerScoreElement = document.getElementById('playerScore');
+        const computerScoreElement = document.getElementById('computerScore');
+
+        let cells = [];
+        let currentPlayer = 'red';
+        let gameOver = false;
+        let playerScore = 0;
+        let computerScore = 0;
+
+        // Initialize board
+        function initBoard() {
+            cells = Array(6).fill(null).map(() => Array(7).fill(null));
+            board.innerHTML = '';
+            for (let row = 0; row < 6; row++) {
+                for (let col = 0; col < 7; col++) {
+                    const cell = document.createElement('div');
+                    cell.classList.add('cell');
+                    cell.dataset.row = row;
+                    cell.dataset.col = col;
+                    board.appendChild(cell);
+                    cell.addEventListener('click', () => handleClick(row, col));
+                }
+            }
+            message.textContent = "Your turn!";
+            gameOver = false;
+            currentPlayer = 'red';
+        }
+
+        // Handle cell click
+        function handleClick(row, col) {
+            if (gameOver || cells[0][col]) return;
+
+            let placed = false;
+            for (let r = 5; r >= 0; r--) {
+                if (!cells[r][col]) {
+                    cells[r][col] = currentPlayer;
+                    placed = true;
+                    break;
+                }
+            }
+
+            if (placed) {
+                updateBoard();
+                if (checkWin()) {
+                    message.textContent = `${currentPlayer.charAt(0).toUpperCase() + currentPlayer.slice(1)} wins!`;
+                    gameOver = true;
+                    restartButton.style.display = 'block';
+                    if (currentPlayer === 'red') {
+                        playerScore++;
+                        playerScoreElement.textContent = `Player: ${playerScore}`;
+                    } else {
+                        computerScore++;
+                        computerScoreElement.textContent = `Computer: ${computerScore}`;
+                    }
+                } else if (cells.flat().every(cell => cell !== null)) {
+                    message.textContent = "It's a tie!";
+                    gameOver = true;
+                    restartButton.style.display = 'block';
+                } else {
+                    currentPlayer = currentPlayer === 'red' ? 'yellow' : 'red';
+                    if (currentPlayer === 'yellow') {
+                        message.textContent = "Computer's turn!";
+                        setTimeout(computerMove, 500); // Delay for computer's move
+                    } else {
+                        message.textContent = "Your turn!";
+                    }
+                }
+            }
+        }
+
+        // Update the visual board
+        function updateBoard() {
+            for (let row = 0; row < 6; row++) {
+                for (let col = 0; col < 7; col++) {
+                    const cell = board.querySelector(`.cell[data-row="${row}"][data-col="${col}"]`);
+                    if (cells[row][col]) {
+                        cell.classList.add(cells[row][col]);
+                    }
+                }
+            }
+        }
+
+        // Check for win
+        function checkWin() {
+            for (let row = 0; row < 6; row++) {
+                for (let col = 0; col < 7; col++) {
+                    if (cells[row][col] && checkDirection(row, col, 1, 0) || // Horizontal
+                        checkDirection(row, col, 0, 1) || // Vertical
+                        checkDirection(row, col, 1, 1) || // Diagonal \
+                        checkDirection(row, col, 1, -1)) { // Diagonal /
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }
+
+        // Check direction for four in a row
+        function checkDirection(row, col, rowDir, colDir) {
+            let count = 0;
+            for (let i = -3; i <= 3; i++) {
+                const r = row + i * rowDir;
+                const c = col + i * colDir;
+                if (r >= 0 && r < 6 && c >= 0 && c < 7 && cells[r][c] === currentPlayer) {
+                    count++;
+                    if (count === 4) return true;
+                } else {
+                    count = 0;
+                }
+            }
+            return false;
+        }
+
+        // Computer's move
+        function computerMove() {
+            let validMoves = [];
+            for (let col = 0; col < 7; col++) {
+                if (!cells[0][col]) validMoves.push(col);
+            }
+
+            let bestCol = validMoves[Math.floor(Math.random() * validMoves.length)];
+
+            for (let row = 5; row >= 0; row--) {
+                if (!cells[row][bestCol]) {
+                    cells[row][bestCol] = 'yellow';
+                    break;
+                }
+            }
+
+            updateBoard();
+            if (checkWin()) {
+                message.textContent = `Computer wins!`;
+                gameOver = true;
+                computerScore++;
+                computerScoreElement.textContent = `Computer: ${computerScore}`;
+                restartButton.style.display = 'block';
+            } else if (cells.flat().every(cell => cell !== null)) {
+                message.textContent = "It's a tie!";
+                gameOver = true;
+                restartButton.style.display = 'block';
+            } else {
+                currentPlayer = 'red';
+                message.textContent = "Your turn!";
+            }
+        }
+
+        // Restart the game
+        restartButton.addEventListener('click', () => {
+            gameOver = false;
+            restartButton.style.display = 'none';
+            initBoard();
+        });
+
+        // Start the game
+        initBoard();
+    </script>
+</body>
+</html>
